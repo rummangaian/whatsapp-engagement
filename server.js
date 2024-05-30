@@ -8,55 +8,131 @@ const  WEBHOOK_VERIFY_TOKEN= "xpxaidtaas"
 const  GRAPH_API_TOKEN ="EAAN0Dx7eq04BO7ZCDb2IwUjsZBxGLkyWsZBHO878JvMrSIG5ZCZBRwklXmO9ZBypRc3qjp8JuO0kem7ZA7xSQJNtM1nVpwMhPxeWmoHvPS7iO0fkOVFMt9JEx59b7t2YRlwZAWNBJR30zELGbvk5SmZAXskMVMe41kIaAfj3d4eFuL4sPlJXvAbrVZCZBhMCZABngdTvkK8IGfn18ZCPMC7ZAlJaUZD"
 const PORT = 3000 
 
+// app.post("/webhook", async (req, res) => {
+//   // log incoming messages
+//   console.log("Incoming webhook message:", JSON.stringify(req.body, null, 2));
+
+//   // check if the webhook request contains a message
+//   // details on WhatsApp text message payload: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/payload-examples#text-messages
+//   const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
+
+//   // check if the incoming message contains text
+//   if (message?.type === "text") {
+//     // extract the business number to send the reply from it
+//     const business_phone_number_id =
+//       req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
+//     // console.log(business_phone_number_id)
+
+//     // send a reply message as per the docs here https://developers.facebook.com/docs/whatsapp/cloud-api/reference/messages
+//     await axios({
+//       method: "POST",
+//       url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
+//       headers: {
+//         Authorization: `Bearer ${GRAPH_API_TOKEN}`,
+//       },
+//       data: {
+//         messaging_product: "whatsapp",
+//         to: message.from,
+//         text: { body: "Echo: " + message.text.body },
+//         context: {
+//           message_id: message.id, // shows the message as a reply to the original user message
+//         },
+//       },
+//     });
+
+//     // mark incoming message as read
+//     await axios({
+//       method: "POST",
+//       url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
+//       headers: {
+//         Authorization: `Bearer ${GRAPH_API_TOKEN}`,
+//       },
+//       data: {
+//         messaging_product: "whatsapp",
+//         status: "read",
+//         message_id: message.id,
+//       },
+//     });
+  
+//   }
+
+//   res.sendStatus(200);
+// });
+
+
 app.post("/webhook", async (req, res) => {
-  // log incoming messages
-  console.log("Incoming webhook message:", JSON.stringify(req.body, null, 2));
+  try {
+    // Log incoming messages
+    console.log("Incoming webhook message:", JSON.stringify(req.body, null, 2));
 
-  // check if the webhook request contains a message
-  // details on WhatsApp text message payload: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/payload-examples#text-messages
-  const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
+    // Check if the webhook request contains a message
+    const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
 
-  // check if the incoming message contains text
-  if (message?.type === "text") {
-    // extract the business number to send the reply from it
-    const business_phone_number_id =
-      req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
-    // console.log(business_phone_number_id)
+    if (message?.type === "text") {
+      // Extract the business number to send the reply from it
+      const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
 
-    // send a reply message as per the docs here https://developers.facebook.com/docs/whatsapp/cloud-api/reference/messages
-    await axios({
-      method: "POST",
-      url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
-      headers: {
-        Authorization: `Bearer ${GRAPH_API_TOKEN}`,
-      },
-      data: {
+      // Prepare the reply message payload
+      const replyPayload = {
         messaging_product: "whatsapp",
         to: message.from,
         text: { body: "Echo: " + message.text.body },
         context: {
           message_id: message.id, // shows the message as a reply to the original user message
         },
-      },
-    });
+      };
 
-    // mark incoming message as read
-    await axios({
-      method: "POST",
-      url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
-      headers: {
-        Authorization: `Bearer ${GRAPH_API_TOKEN}`,
-      },
-      data: {
+      // Log the reply payload
+      console.log("Reply Payload:", JSON.stringify(replyPayload, null, 2));
+
+      try {
+        // Send a reply message
+        const replyResponse = await axios({
+          method: "POST",
+          url: `https://graph.facebook.com/v20.0/${business_phone_number_id}/messages`,
+          headers: {
+            Authorization: `Bearer ${GRAPH_API_TOKEN}`,
+            'Content-Type': 'application/json'
+          },
+          data: replyPayload,
+        });
+        console.log("Reply response:", replyResponse.data);
+      } catch (error) {
+        console.error("Error sending reply message:", error.response ? error.response.data : error.message);
+      }
+
+      // Prepare the read message payload
+      const readPayload = {
         messaging_product: "whatsapp",
         status: "read",
         message_id: message.id,
-      },
-    });
-  
-  }
+      };
 
-  res.sendStatus(200);
+      // Log the read payload
+      console.log("Read Payload:", JSON.stringify(readPayload, null, 2));
+
+      try {
+        // Mark incoming message as read
+        const readResponse = await axios({
+          method: "POST",
+          url: `https://graph.facebook.com/v20.0/${business_phone_number_id}/messages`,
+          headers: {
+            Authorization: `Bearer ${GRAPH_API_TOKEN}`,
+            'Content-Type': 'application/json'
+          },
+          data: readPayload,
+        });
+        console.log("Read response:", readResponse.data);
+      } catch (error) {
+        console.error("Error marking message as read:", error.response ? error.response.data : error.message);
+      }
+    }
+
+    res.sendStatus(200);
+  } catch (error) {
+    console.error("Error in webhook handler:", error.message);
+    res.sendStatus(500);
+  }
 });
 
 // accepts GET requests at the /webhook endpoint. You need this URL to setup webhook initially.
